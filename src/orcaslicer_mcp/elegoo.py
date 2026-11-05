@@ -9,8 +9,10 @@ on success. OrcaSlicer itself cannot start a print on these printers.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -36,6 +38,20 @@ def config() -> tuple[str, str]:
     if not token:
         raise PrinterError(f"set ELEGOO_TOKEN or put the access code in {token_file}")
     return host, token
+
+
+def _check(status: int, body: str) -> dict:
+    if status in (401, 403):
+        raise PrinterError(f"HTTP {status}: invalid access code or printer not in LAN-only mode")
+    if status >= 400:
+        raise PrinterError(f"HTTP {status}: {body[:300]}")
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        raise PrinterError(f"unexpected response: {body[:300]}")
+    if data.get("error_code", -1) != 0:
+        raise PrinterError(f"printer error {data.get('error_code')}: {data.get('message', body[:300])}")
+    return data
 
 
 def _request(req: urllib.request.Request, timeout: int) -> dict:
@@ -69,17 +85,35 @@ def upload(host: str, token: str, path: Path, name: str = "", timeout: int = 180
         raise PrinterError(f"{path} is empty")
     name = name or path.name
     md5 = hashlib.md5(data).hexdigest()
-    for offset in range(0, len(data), CHUNK):
-        chunk = data[offset:offset + CHUNK]
-        req = urllib.request.Request(f"http://{host}/upload", data=chunk, method="PUT", headers={
-            "Accept": "application/json",
-            "Content-Type": "application/octet-stream",
-            "Content-Range": f"bytes {offset}-{offset + len(chunk) - 1}/{len(data)}",
-            "X-File-Name": name,
-            "X-File-MD5": md5,
-            "X-Token": token,
-        })
-        _request(req, timeout)
+    # All chunks must travel over ONE keep-alive connection (as OrcaSlicer does): with a new
+    # connection per chunk a Centauri 2 kept only the last chunk and failed with error 9004.
+    hostname, _, port = host.partition(":")
+    conn = http.client.HTTPConnection(hostname, int(port or 80), timeout=timeout)
+    try:
+        for offset in range(0, len(data), CHUNK):
+            chunk = data[offset:offset + CHUNK]
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/octet-stream",
+                "Content-Range": f"bytes {offset}-{offset + len(chunk) - 1}/{len(data)}",
+                "X-File-Name": name,
+                "X-File-MD5": md5,
+                "X-Token": token,
+            }
+            for attempt in range(8):  # the printer answers 429 when it is busy
+                try:
+                    conn.request("PUT", "/upload", body=chunk, headers=headers)
+                    resp = conn.getresponse()
+                    body = resp.read().decode("utf-8", "replace")
+                except OSError as e:
+                    raise PrinterError(f"printer unreachable during upload: {e}")
+                if resp.status == 429 and attempt < 7:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                _check(resp.status, body)
+                break
+    finally:
+        conn.close()
     return {"uploaded": name, "bytes": len(data), "md5": md5}
 
 

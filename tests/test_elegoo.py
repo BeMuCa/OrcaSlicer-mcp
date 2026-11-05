@@ -65,3 +65,23 @@ def test_upload_chunks_and_md5(printer, tmp_path, monkeypatch):
     assert got["data"] == f.read_bytes()
     assert got["ranges"] == ["bytes 0-9/30", "bytes 10-19/30", "bytes 20-29/30"]
     assert got["md5"] == r["md5"]
+
+
+def test_upload_retries_on_429(printer, tmp_path, monkeypatch):
+    monkeypatch.setattr(elegoo, "CHUNK", 10)
+    monkeypatch.setattr(elegoo.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+    real = FakePrinter.do_PUT
+
+    def flaky(self):
+        calls["n"] += 1
+        if calls["n"] == 2:  # second request is rate limited
+            self.rfile.read(int(self.headers["Content-Length"]))
+            return self._reply(429, {})
+        return real(self)
+
+    monkeypatch.setattr(FakePrinter, "do_PUT", flaky)
+    f = tmp_path / "p.gcode"
+    f.write_bytes(b"G1 X1\n" * 5)
+    elegoo.upload(printer, TOKEN, f)
+    assert FakePrinter.received["p.gcode"]["data"] == f.read_bytes()
