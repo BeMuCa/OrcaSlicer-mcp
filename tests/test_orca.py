@@ -78,3 +78,14 @@ def test_server_registers_tools():
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert names == {"slicer_info", "list_profiles", "slice_model", "gcode_stats",
                      "printer_info", "upload_to_printer"}
+
+
+def test_tool_errors_reach_the_client(monkeypatch):
+    import asyncio
+
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from orcaslicer_mcp import server
+    monkeypatch.delenv("ELEGOO_HOST", raising=False)
+    with pytest.raises(ToolError, match="ELEGOO_HOST"):
+        asyncio.run(server.mcp.call_tool("printer_info", {}))

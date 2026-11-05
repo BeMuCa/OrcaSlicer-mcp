@@ -9,6 +9,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from mcp.server.mcpserver.exceptions import ToolError
+
 KINDS = ("machine", "process", "filament")
 
 _CANDIDATES = [
@@ -19,7 +21,7 @@ _CANDIDATES = [
 ]
 
 
-class OrcaError(RuntimeError):
+class OrcaError(ToolError):  # ToolError: the MCP client sees the message
     pass
 
 

@@ -16,10 +16,12 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from mcp.server.mcpserver.exceptions import ToolError
+
 CHUNK = 1024 * 1024
 
 
-class PrinterError(RuntimeError):
+class PrinterError(ToolError):  # ToolError: the MCP client sees the message
     pass
 
 
