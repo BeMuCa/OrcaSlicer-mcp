@@ -7,7 +7,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from . import orca
+from . import elegoo, orca
 
 mcp = MCPServer("orcaslicer")
 
@@ -44,6 +44,20 @@ def slice_model(model_path: str, vendor: str, machine: str, process: str, filame
 def gcode_stats(gcode_path: str) -> dict:
     """Time, filament and layer estimates from an OrcaSlicer G-code file."""
     return orca.gcode_stats(Path(gcode_path).expanduser())
+
+
+@mcp.tool()
+def printer_info() -> dict:
+    """Elegoo Centauri 2 / Carbon 2 system info (LAN-only mode). Needs ELEGOO_HOST and
+    ELEGOO_TOKEN or ~/.config/elegoo_token."""
+    return elegoo.system_info(*elegoo.config())
+
+
+@mcp.tool()
+def upload_to_printer(gcode_path: str) -> dict:
+    """Upload a G-code file to the Elegoo printer. Starting the print is done on the
+    printer's display; remote start is not supported for these printers."""
+    return elegoo.upload(*elegoo.config(), Path(gcode_path).expanduser())
 
 
 def main() -> None:

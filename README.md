@@ -14,6 +14,8 @@ Tested with OrcaSlicer 2.4.2 on Windows, driven from WSL2, Elegoo Centauri Carbo
 | `list_profiles(vendor, kind, query)` | Selectable machine / process / filament profiles |
 | `slice_model(model_path, vendor, machine, process, filament, overrides)` | Slice an STL/3MF, return G-code path + time, filament (mm, cm³, g), layers |
 | `gcode_stats(gcode_path)` | Estimates from an existing OrcaSlicer G-code |
+| `printer_info()` | Elegoo Centauri 2 / Carbon 2 system info over LAN |
+| `upload_to_printer(gcode_path)` | Upload G-code to that printer (start the print on its display) |
 
 `overrides` are process settings by OrcaSlicer key, e.g. `{"sparse_infill_density": "40%"}`.
 
@@ -43,6 +45,12 @@ process chains itself and passes the original machine file.
 
 `ORCASLICER_PATH` is only needed if OrcaSlicer is not on `PATH` or in its default install
 location. From WSL, a Windows `orca-slicer.exe` works; paths are converted with `wslpath`.
+
+## Elegoo Centauri 2 / Carbon 2
+
+Put the printer in LAN-only mode. Set `ELEGOO_HOST` to its IP and the access code in
+`ELEGOO_TOKEN` or `~/.config/elegoo_token`. Upload uses the same protocol as OrcaSlicer's
+ElegooLink (`PUT /upload`, `X-Token` header). Remote print start is not supported.
 
 ## Tests
 

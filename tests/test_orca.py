@@ -76,4 +76,5 @@ def test_server_registers_tools():
 
     from orcaslicer_mcp import server
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
-    assert names == {"slicer_info", "list_profiles", "slice_model", "gcode_stats"}
+    assert names == {"slicer_info", "list_profiles", "slice_model", "gcode_stats",
+                     "printer_info", "upload_to_printer"}
