@@ -77,7 +77,8 @@ def test_server_registers_tools():
     from orcaslicer_mcp import server
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert names == {"slicer_info", "list_profiles", "slice_model", "gcode_stats",
-                     "printer_info", "upload_to_printer"}
+                     "printer_info", "upload_to_printer", "get_profile",
+                     "printer_status", "printer_files", "start_print"}
 
 
 def test_tool_errors_reach_the_client(monkeypatch):
@@ -89,3 +90,14 @@ def test_tool_errors_reach_the_client(monkeypatch):
     monkeypatch.delenv("ELEGOO_HOST", raising=False)
     with pytest.raises(ToolError, match="ELEGOO_HOST"):
         asyncio.run(server.mcp.call_tool("printer_info", {}))
+
+
+def test_overrides_keep_profile_shape_and_refuse_typos():
+    fil = {"nozzle_temperature": ["250"], "fan_max_speed": ["40"]}
+    orca.apply_overrides(fil, {"nozzle_temperature": 245}, "filament")
+    assert fil["nozzle_temperature"] == ["245"]
+    proc = {"wall_loops": "2"}
+    orca.apply_overrides(proc, {"wall_loops": 6}, "process")
+    assert proc["wall_loops"] == "6"
+    with pytest.raises(orca.OrcaError, match="wal_loops"):
+        orca.apply_overrides(proc, {"wal_loops": 6}, "process")

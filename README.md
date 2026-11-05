@@ -15,7 +15,10 @@ Tested with OrcaSlicer 2.4.2 on Windows, driven from WSL2, Elegoo Centauri Carbo
 | `slice_model(model_path, vendor, machine, process, filament, overrides)` | Slice an STL/3MF, return G-code path + time, filament (mm, cm³, g), layers |
 | `gcode_stats(gcode_path)` | Estimates from an existing OrcaSlicer G-code |
 | `printer_info()` | Elegoo Centauri 2 / Carbon 2 system info over LAN |
-| `upload_to_printer(gcode_path)` | Upload G-code to that printer (start the print on its display) |
+| `upload_to_printer(gcode_path)` | Upload G-code to that printer |
+| `printer_status()` `printer_files()` | Live state and stored files (MQTT) |
+| `start_print(filename)` | Start a stored file (MQTT method 1020), only when idle |
+| `get_profile(vendor, kind, name, keys, query)` | Every resolved setting of a profile |
 
 `overrides` are process settings by OrcaSlicer key, e.g. `{"sparse_infill_density": "40%"}`.
 
@@ -50,7 +53,7 @@ location. From WSL, a Windows `orca-slicer.exe` works; paths are converted with 
 
 Put the printer in LAN-only mode. Set `ELEGOO_HOST` to its IP and the access code in
 `ELEGOO_TOKEN` or `~/.config/elegoo_token`. Upload uses the same protocol as OrcaSlicer's
-ElegooLink (`PUT /upload`, `X-Token` header). Remote print start is not supported.
+ElegooLink (`PUT /upload`, `X-Token` header). Status, file list and start go over MQTT (port 1883, user `elegoo`, password = access code).
 
 ## Tests
 

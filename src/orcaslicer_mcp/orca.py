@@ -132,15 +132,28 @@ def gcode_stats(path: Path) -> dict:
     return stats
 
 
+def apply_overrides(profile: dict, overrides: dict | None, kind: str) -> None:
+    """Set values in the profile's own shape: filament values are lists, process values strings.
+    Unknown keys are refused so a typo cannot silently do nothing."""
+    unknown = [k for k in (overrides or {}) if k not in profile]
+    if unknown:
+        raise OrcaError(f"unknown {kind} setting(s) {unknown}; read the profile to see valid keys")
+    for k, v in (overrides or {}).items():
+        profile[k] = [str(v)] * max(1, len(profile[k])) if isinstance(profile[k], list) else str(v)
+
+
 def slice_model(model: Path, vendor: str, machine: str, process: str, filament: str,
-                outdir: Path, overrides: dict | None = None, timeout: int = 600) -> dict:
+                outdir: Path, overrides: dict | None = None, timeout: int = 600,
+                filament_overrides: dict | None = None) -> dict:
     exe = find_exe()
     root = profiles_root(exe)
     if not model.is_file():
         raise OrcaError(f"model not found: {model}")
     outdir.mkdir(parents=True, exist_ok=True)
     proc = resolve_profile(root, vendor, "process", process)
-    proc.update({k: str(v) for k, v in (overrides or {}).items()})
+    apply_overrides(proc, overrides, "process")
+    fil = resolve_profile(root, vendor, "filament", filament)
+    apply_overrides(fil, filament_overrides, "filament")
     # The CLI resolves inheritance for system machine files itself and refuses a
     # flattened machine (exit 239); for filaments it does not resolve inheritance
     # (slices as PLA, 0 g), so those are flattened. Process is flattened to carry overrides.
@@ -149,7 +162,7 @@ def slice_model(model: Path, vendor: str, machine: str, process: str, filament: 
         raise OrcaError(f"machine profile '{machine}' not found for vendor {vendor}")
     files = {"machine": machine_file}
     for kind, data in (("process", proc),
-                       ("filament", resolve_profile(root, vendor, "filament", filament))):
+                       ("filament", fil)):
         files[kind] = outdir / f"{kind}.json"
         files[kind].write_text(json.dumps(data, indent=1), encoding="utf-8")
     for old in outdir.glob("*.gcode"):
