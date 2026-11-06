@@ -96,12 +96,15 @@ def test_tool_errors_reach_the_client(monkeypatch):
         asyncio.run(server.mcp.call_tool("printer_info", {}))
 
 
-def test_overrides_keep_profile_shape_and_refuse_typos():
+def test_overrides_keep_profile_shape_and_typos_are_caught_in_gcode(tmp_path):
     fil = {"nozzle_temperature": ["250"], "fan_max_speed": ["40"]}
     orca.apply_overrides(fil, {"nozzle_temperature": 245}, "filament")
     assert fil["nozzle_temperature"] == ["245"]
     proc = {"wall_loops": "2"}
-    orca.apply_overrides(proc, {"wall_loops": 6}, "process")
-    assert proc["wall_loops"] == "6"
+    orca.apply_overrides(proc, {"wall_loops": 6, "fuzzy_skin": "external"}, "process")
+    assert proc == {"wall_loops": "6", "fuzzy_skin": "external"}
+    g = tmp_path / "x.gcode"
+    g.write_text("; wall_loops = 6\n; nozzle_temperature = 245,245\n")
+    orca._check_applied(g, {"wall_loops": 6, "nozzle_temperature": 245})
     with pytest.raises(orca.OrcaError, match="wal_loops"):
-        orca.apply_overrides(proc, {"wal_loops": 6}, "process")
+        orca._check_applied(g, {"wal_loops": 6})

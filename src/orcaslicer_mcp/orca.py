@@ -134,12 +134,20 @@ def gcode_stats(path: Path) -> dict:
 
 def apply_overrides(profile: dict, overrides: dict | None, kind: str) -> None:
     """Set values in the profile's own shape: filament values are lists, process values strings.
-    Unknown keys are refused so a typo cannot silently do nothing."""
-    unknown = [k for k in (overrides or {}) if k not in profile]
-    if unknown:
-        raise OrcaError(f"unknown {kind} setting(s) {unknown}; read the profile to see valid keys")
+    Keys the vendor profile leaves out (e.g. fuzzy_skin) are set too; slice_model checks
+    afterwards that the G-code carries every override, so a typo cannot silently do nothing."""
     for k, v in (overrides or {}).items():
-        profile[k] = [str(v)] * max(1, len(profile[k])) if isinstance(profile[k], list) else str(v)
+        cur = profile.get(k, [] if kind == "filament" else "")
+        profile[k] = [str(v)] * max(1, len(cur)) if isinstance(cur, list) else str(v)
+
+
+def _check_applied(gcode: Path, overrides: dict) -> None:
+    text = gcode.read_text(encoding="utf-8", errors="replace")
+    missing = [k for k, v in overrides.items()
+               if not re.search(rf"^; {re.escape(k)} = {re.escape(str(v))}(,|$)", text, re.M)]
+    if missing:
+        raise OrcaError(f"setting(s) {missing} not applied - unknown key or invalid value; "
+                        "use get_profile to see valid keys")
 
 
 def slice_model(model: Path, vendor: str, machine: str, process: str, filament: str,
@@ -181,4 +189,5 @@ def slice_model(model: Path, vendor: str, machine: str, process: str, filament: 
     if res.returncode != 0 or not gcodes:
         logs = " ".join(p.read_text(errors="replace").strip() for p in outdir.glob("*.log"))
         raise OrcaError(f"slice failed (exit {res.returncode}): {logs or (res.stderr or res.stdout)[-1500:]}")
+    _check_applied(gcodes[0], {**(overrides or {}), **(filament_overrides or {})})
     return {"gcode": str(gcodes[0]), **gcode_stats(gcodes[0])}
