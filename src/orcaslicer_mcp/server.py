@@ -31,17 +31,19 @@ def list_profiles(vendor: str, kind: str, query: str = "") -> list[str]:
 @mcp.tool()
 def slice_model(model_path: str, vendor: str, machine: str, process: str, filament: str,
                 overrides: dict[str, str] | None = None, output_dir: str = "",
-                filament_overrides: dict[str, str] | None = None) -> dict:
+                filament_overrides: dict[str, str] | None = None,
+                bed_type: str = "Textured PEI Plate") -> dict:
     """Slice an STL/3MF and return G-code path plus time/material estimates.
     overrides are process settings by OrcaSlicer key, e.g. {"sparse_infill_density": "40%",
     "wall_loops": "4", "enable_support": "1"}; filament_overrides likewise for the filament,
     e.g. {"nozzle_temperature": "215"}. Use get_profile to see every key and its current value.
-    output_dir defaults to <model dir>/sliced/<model>-<timestamp>."""
+    bed_type picks the plate temperatures: "Textured PEI Plate", "Hot Plate" (smooth PEI),
+    "Cool Plate", "Engineering Plate". output_dir defaults to <model dir>/sliced/<model>-<timestamp>."""
     model = Path(model_path).expanduser()
     out = Path(output_dir).expanduser() if output_dir else (
         model.parent / "sliced" / f"{model.stem}-{time.strftime('%Y%m%d-%H%M%S')}")
     return orca.slice_model(model, vendor, machine, process, filament, out, overrides,
-                            filament_overrides=filament_overrides)
+                            filament_overrides=filament_overrides, bed_type=bed_type)
 
 
 @mcp.tool()

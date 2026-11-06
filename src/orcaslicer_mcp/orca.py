@@ -144,7 +144,8 @@ def apply_overrides(profile: dict, overrides: dict | None, kind: str) -> None:
 
 def slice_model(model: Path, vendor: str, machine: str, process: str, filament: str,
                 outdir: Path, overrides: dict | None = None, timeout: int = 600,
-                filament_overrides: dict | None = None) -> dict:
+                filament_overrides: dict | None = None,
+                bed_type: str = "Textured PEI Plate") -> dict:
     exe = find_exe()
     root = profiles_root(exe)
     if not model.is_file():
@@ -152,6 +153,8 @@ def slice_model(model: Path, vendor: str, machine: str, process: str, filament: 
     outdir.mkdir(parents=True, exist_ok=True)
     proc = resolve_profile(root, vendor, "process", process)
     apply_overrides(proc, overrides, "process")
+    # Without this the CLI assumes "Cool Plate" and heats PLA beds to 35 C only (spaghetti on PEI)
+    proc["curr_bed_type"] = bed_type
     fil = resolve_profile(root, vendor, "filament", filament)
     apply_overrides(fil, filament_overrides, "filament")
     # The CLI resolves inheritance for system machine files itself and refuses a

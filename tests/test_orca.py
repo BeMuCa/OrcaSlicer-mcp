@@ -68,7 +68,11 @@ def test_slice_real_cube_elegoo_centauri_carbon(tmp_path):
     assert r["filament_type"] == "PETG"
     assert float(r["filament_g"]) > 0
     assert r["layers"] == "100"
-    assert "; sparse_infill_density = 40%" in Path(r["gcode"]).read_text()
+    gcode = Path(r["gcode"]).read_text()
+    assert "; sparse_infill_density = 40%" in gcode
+    # default bed type is textured PEI: PETG bed at 70 C, not the cool-plate fallback
+    assert "; curr_bed_type = Textured PEI Plate" in gcode
+    assert "M190 S35" not in gcode
 
 
 def test_server_registers_tools():
